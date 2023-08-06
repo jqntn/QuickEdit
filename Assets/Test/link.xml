@@ -1,0 +1,5 @@
+<linker>
+  <assembly fullname="Windows" windowsruntime="true">
+    <type name="TypeName"/>
+ </assembly>
+</linker>
