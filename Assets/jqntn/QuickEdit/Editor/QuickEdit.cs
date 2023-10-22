@@ -28,11 +28,12 @@ namespace jqntn.QuickEdit
         private const string CANCEL_BUTTON_LABEL = "Revert";
         private const string LARGE_FILE_WARNING = "(editing a large file may cause slowdown)";
         private const string DEFAULT_ENCODING = "iso-8859-1";
+        private const string HEADER_STYLE = "In BigTitle";
         private const int MAX_FILE_SIZE = 1024 * 1024;
         private const int ICON_SIZE = 42;
-        private const int MOE_MARGIN = 10;
 
         private readonly string _editorNamespace = typeof(Editor).Namespace;
+        private readonly bool useMinimalUI = true;
 
         private Color EditButtonColor => EditorGUIUtility.isProSkin ? Color.cyan : GetColor(TEAL_BLUE);
         private Color ConfirmButtonColor => EditorGUIUtility.isProSkin ? GetColor(LIGHT_RED) : GetColor(MAROON_RED);
@@ -98,26 +99,49 @@ namespace jqntn.QuickEdit
 
         private void DrawQuickEdit()
         {
-            GUILayout.Label(_icon, new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter }, GUILayout.Height(ICON_SIZE));
+            var style = new GUIStyle();
+
+            if (target.GetType() != typeof(DefaultAsset))
+            {
+                EditorGUILayout.Space(sizeof(int) * sizeof(int));
+                style = GUI.skin.FindStyle(HEADER_STYLE);
+            }
+
+            EditorGUILayout.BeginVertical(style);
+
+            if (!useMinimalUI)
+                GUILayout.Label(_icon, new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter, fixedHeight = ICON_SIZE });
 
             using (new EditorGUILayout.HorizontalScope())
             {
                 if (_canEdit)
                 {
                     GUI.backgroundColor = CancelButtonColor;
-                    if (GUILayout.Button(EditorGUIUtility.TrTextContent(CANCEL_BUTTON_LABEL))) _canEdit = false;
+                    if (GUILayout.Button(EditorGUIUtility.TrTextContent(CANCEL_BUTTON_LABEL), EditorStyles.miniButtonLeft)) _canEdit = false;
                 }
                 else
                 {
-                    GUI.backgroundColor = EditButtonColor;
-                    if (GUILayout.Button($"{EditorGUIUtility.TrTextContent(PLUGIN_PREFIX)} {EditorGUIUtility.TrTextContent(EDIT_BUTTON_LABEL)}"))
+                    var editButton = false;
+                    if (useMinimalUI)
                     {
+                        using var _ = new EditorGUILayout.HorizontalScope();
+                        GUILayout.FlexibleSpace();
+                        editButton = GUILayout.Button(EditorGUIUtility.TrTextContent(EDIT_BUTTON_LABEL), new GUIStyle(EditorStyles.miniButton) { margin = new RectOffset() { right = sizeof(int) } });
+                    }
+                    else
+                    {
+                        GUI.backgroundColor = EditButtonColor;
+                        editButton = GUILayout.Button($"{EditorGUIUtility.TrTextContent(PLUGIN_PREFIX)} {EditorGUIUtility.TrTextContent(EDIT_BUTTON_LABEL)}");
+                    }
+                    if (editButton)
+                    {
+                        GUI.FocusControl(null);
                         _text = File.ReadAllText(_assetPath, _encoding);
                         _canEdit = true;
                     }
                 }
                 GUI.backgroundColor = ConfirmButtonColor;
-                if (_canEdit && GUILayout.Button(EditorGUIUtility.TrTextContent(CONFIRM_BUTTON_LABEL)))
+                if (_canEdit && GUILayout.Button(EditorGUIUtility.TrTextContent(CONFIRM_BUTTON_LABEL), EditorStyles.miniButtonRight))
                 {
                     File.WriteAllText(_assetPath, _text, _encoding);
                     AssetDatabase.Refresh();
@@ -126,7 +150,7 @@ namespace jqntn.QuickEdit
                 GUI.backgroundColor = _defaultBackgroundColor;
             }
 
-            if (!_canEdit && _isFileTooLarge)
+            if (!useMinimalUI && !_canEdit && _isFileTooLarge)
             {
                 GUI.contentColor = WarningLabelColor;
                 EditorGUILayout.LabelField(LARGE_FILE_WARNING, new GUIStyle(GUI.skin.label) { alignment = TextAnchor.MiddleCenter });
@@ -134,12 +158,9 @@ namespace jqntn.QuickEdit
             }
 
             if (_canEdit)
-            {
                 _text = EditorGUILayout.TextArea(_text);
-                EditorGUILayout.Space();
-            }
 
-            EditorGUILayout.Space(MOE_MARGIN);
+            EditorGUILayout.EndVertical();
         }
 
         private Encoding DetectFileEncoding(string filePath)
